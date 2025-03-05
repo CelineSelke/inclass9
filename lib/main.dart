@@ -1,3 +1,4 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
 
@@ -33,9 +34,7 @@ class _FolderSelectionScreenState extends State<FolderSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Select Card Folder'),
-      ),
+      appBar: AppBar(title: Text('Select Card Folder')),
       body: _folders.isEmpty
           ? Center(child: CircularProgressIndicator())
           : ListView.builder(
@@ -46,7 +45,13 @@ class _FolderSelectionScreenState extends State<FolderSelectionScreen> {
                 return Card(
                   child: ListTile(
                     title: Text(folder['name']),
-                    trailing: Icon(Icons.arrow_forward),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () async {
+                        await _dbHelper.deleteFolder(folder['folderID']);
+                        _loadFolders();
+                      },
+                    ),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -69,7 +74,7 @@ class _FolderSelectionScreenState extends State<FolderSelectionScreen> {
   }
 
   Future<void> _createNewFolder(BuildContext context) async {
-    final TextEditingController controller = TextEditingController();
+    final controller = TextEditingController();
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -102,7 +107,7 @@ class _FolderSelectionScreenState extends State<FolderSelectionScreen> {
 class CardGridScreen extends StatefulWidget {
   final int folderId;
 
-  CardGridScreen({required this.folderId});
+  const CardGridScreen({required this.folderId});
 
   @override
   _CardGridScreenState createState() => _CardGridScreenState();
@@ -120,7 +125,7 @@ class _CardGridScreenState extends State<CardGridScreen> {
 
   Future<void> _loadCards() async {
     await _dbHelper.init();
-    final cards = await _dbHelper.queryAllRowsCards();
+    final cards = await _dbHelper.getCardsInFolder(widget.folderId);
     setState(() {
       _cards = cards;
     });
@@ -129,18 +134,16 @@ class _CardGridScreenState extends State<CardGridScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Cards in Folder'),
-      ),
+      appBar: AppBar(title: Text('Cards in Folder')),
       body: _cards.isEmpty
           ? Center(child: CircularProgressIndicator())
           : GridView.builder(
               padding: EdgeInsets.all(16),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, // Number of columns
+                crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 0.7, // Width/height ratio
+                childAspectRatio: 0.7,
               ),
               itemCount: _cards.length,
               itemBuilder: (context, index) {
@@ -155,15 +158,16 @@ class _CardGridScreenState extends State<CardGridScreen> {
                       Expanded(
                         child: ClipRRect(
                           borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(15)),
+                            top: Radius.circular(15),
+                          ),
                           child: Image.asset(
                             card['imageURL'],
                             fit: BoxFit.cover,
                             width: double.infinity,
                             errorBuilder: (context, error, stackTrace) =>
-                              Center(child: Icon(Icons.error)),
+                                Center(child: Icon(Icons.error)),
+                          ),
                         ),
-                      ),
                       ),
                       Padding(
                         padding: EdgeInsets.all(8),
@@ -171,7 +175,8 @@ class _CardGridScreenState extends State<CardGridScreen> {
                           '${card['name']} of ${card['suit']}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16),
+                            fontSize: 16,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),

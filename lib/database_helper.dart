@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 class DatabaseHelper {
   static const _databaseName = "MyDatabase.db";
   static const _databaseVersion = 1;
-  static const table = 'my_table';
+  static const table = 'cards';
   static const foldersTable = 'folders';
   static const columnFolderId = 'folderID';
   static const columnId = '_id';
@@ -47,21 +47,38 @@ class DatabaseHelper {
     )
   ''');
 
-  // Insert default folder
-  await db.insert('folders', {'name': 'Standard Deck'});
+  // Insert default folders
+  final folders = [
+    {'name': 'Standard Deck'},
+    {'name': 'Hearts'},
+    {'name': 'Diamonds'},
+    {'name': 'Clubs'},
+    {'name': 'Spades'},
+  ];
+  
+  // Insert folders and get their IDs
+  final folderIds = <int>[];
+  for (final folder in folders) {
+    final id = await db.insert(foldersTable, folder);
+    folderIds.add(id);
+  }
 
-  // Insert all 52 cards
+  // Insert all 52 cards into their respective folders
   const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
-  const ranks = ['Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
+  const ranks = ['Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 
+    'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
 
   final batch = db.batch();
-  for (final suit in suits) {
+  for (var i = 0; i < suits.length; i++) {
+    final suit = suits[i];
+    final folderId = folderIds[i + 1]; // Skip Standard Deck (index 0)
+    
     for (final rank in ranks) {
       batch.insert('cards', {
         'name': rank,
         'suit': suit,
         'imageURL': 'assets/cards/${rank.toLowerCase()}_of_$suit.png',
-        'folderID': 1, // Reference to Standard Deck folder
+        'folderID': folderId,
       });
     }
   }
@@ -123,5 +140,21 @@ class DatabaseHelper {
 
   Future<int> insertFolder(Map<String, dynamic> folder) async {
     return await _db.insert(foldersTable, folder);
+  }
+
+  Future<List<Map<String, dynamic>>> getCardsInFolder(int folderId) async {
+    return await _db.query(
+      'cards',
+      where: 'folderID = ?',
+      whereArgs: [folderId],
+    );
+  }
+
+  Future<int> deleteFolder(int id) async {
+    return await _db.delete(
+      foldersTable,
+      where: '$columnFolderId = ?',
+      whereArgs: [id],
+    );
   }
 }
