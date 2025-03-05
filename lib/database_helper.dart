@@ -6,9 +6,12 @@ class DatabaseHelper {
   static const _databaseName = "MyDatabase.db";
   static const _databaseVersion = 1;
   static const table = 'my_table';
+  static const foldersTable = 'folders';
+  static const columnFolderId = 'folderID';
   static const columnId = '_id';
   static const columnName = 'name';
-  static const columnAge = 'age';
+  static const columnSuit = 'suit';
+  static const columnURL = 'imageURL';
   late Database _db;
 // this opens the database (and creates it if it doesn't exist)
   Future<void> init() async {
@@ -18,19 +21,52 @@ class DatabaseHelper {
       path,
       version: _databaseVersion,
       onCreate: _onCreate,
+      onConfigure: (db) async => await db.execute('PRAGMA foreign_keys = ON'),
     );
   }
 
 // SQL code to create the database table
   Future _onCreate(Database db, int version) async {
-    await db.execute('''
-CREATE TABLE $table (
-$columnId INTEGER PRIMARY KEY,
-$columnName TEXT NOT NULL,
-$columnAge INTEGER NOT NULL
-)
-''');
+  // Create folders table
+  await db.execute('''
+    CREATE TABLE folders (
+      folderID INTEGER PRIMARY KEY,
+      name TEXT NOT NULL
+    )
+  ''');
+
+  // Create cards table
+  await db.execute('''
+    CREATE TABLE cards (
+      _id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      suit TEXT NOT NULL,
+      imageURL TEXT NOT NULL,
+      folderID INTEGER,
+      FOREIGN KEY (folderID) REFERENCES folders (folderID) ON DELETE CASCADE
+    )
+  ''');
+
+  // Insert default folder
+  await db.insert('folders', {'name': 'Standard Deck'});
+
+  // Insert all 52 cards
+  const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+  const ranks = ['Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
+
+  final batch = db.batch();
+  for (final suit in suits) {
+    for (final rank in ranks) {
+      batch.insert('cards', {
+        'name': rank,
+        'suit': suit,
+        'imageURL': 'assets/cards/${rank.toLowerCase()}_of_$suit.png',
+        'folderID': 1, // Reference to Standard Deck folder
+      });
+    }
   }
+  await batch.commit();
+}
 
 // Helper methods
 // Inserts a row in the database where each key in the
@@ -55,6 +91,10 @@ $columnAge INTEGER NOT NULL
     return Sqflite.firstIntValue(results) ?? 0;
   }
 
+  Future<List<Map<String, dynamic>>> queryAllRowsCards() async {
+    return await _db.query('cards');
+  }
+
 // We are assuming here that the id column in the map is set. The other
 // column values will be used to update the row.
   Future<int> update(Map<String, dynamic> row) async {
@@ -75,5 +115,13 @@ $columnAge INTEGER NOT NULL
       where: '$columnId = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<List<Map<String, dynamic>>> getFolders() async {
+    return await _db.query('folders');
+  }
+
+  Future<int> insertFolder(Map<String, dynamic> folder) async {
+    return await _db.insert(foldersTable, folder);
   }
 }
