@@ -37,43 +37,57 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     int folderCount = 4;
-    List<String> _folderName = ["0","1","2","3","4","5","6","7"];
+    var folderNames = ["0","1","2","3","4","5","6"];
     FolderDatabaseHelper folder = FolderDatabaseHelper();
     int rowCount = 0;
 
     Future<void> _initializeDatabase() async {
-      await folder.init(); 
+        await folder.init();  
+        setState(() {
+          
+        });
+
     }
 
-    void deleteFolder(int index){
-
-    }
-
-    void renameFolder(int index){
-
+    void deleteFolder(int index) async{
+        int id = await folder.delete(index);
     }
 
     Future<void> _getRowCount() async {
       rowCount = await folder.queryRowCount();
     }
 
-    Future<void> setFolderName(int id) async{
+    void getFolderName(int id) async{
         String? folderName = await folder.getFolderNameById(id);
         setState(() {
-            _folderName[id] = folderName ?? "Folder not found";
+            folderNames[id] = folderName ?? "Not found";
         });
-        
     }
+      
 
-    Future<void> _insertNewFolder(String name, int index) async {
+    void renameFolder(int index, String name) async{
+      Map<String, dynamic> newFolder = {
+        'folder_name': name,
+        'timestamp': DateTime.now().toString(),
+        'columnId': index, 
+      };
+        int id = await folder.update(newFolder);
+
+        getFolderName(index);
+      
+    }
+    
+
+    void insertNewFolder(String name, int index) async {
       Map<String, dynamic> newFolder = {
         'folder_name': name,
         'timestamp': DateTime.now().toString(),
       };
 
-      setFolderName(index);
 
       int id = await folder.insert(newFolder);
+
+      getFolderName(index);
 
     }
 
@@ -85,7 +99,7 @@ class _MyHomePageState extends State<MyHomePage> {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Enter Task Name'),
+            title: const Text('Enter Folder Name'),
             content: TextField(
               onChanged: (value) {
                 setState(() {
@@ -105,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: const Text("Add"),
                 onPressed: () {
                   if (newFolderName.isNotEmpty) {
-                    _insertNewFolder(newFolderName, rowCount);
+                    insertNewFolder(newFolderName, rowCount);
                   }
                   Navigator.of(context).pop();
                 },
@@ -116,12 +130,57 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
+    
+    void showRenameFolderDialog(int index) {
+      String newFolderName = "";
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Change Folder Name'),
+            content: TextField(
+              onChanged: (value) {
+                setState(() {
+                  newFolderName = value;
+                });
+              },
+              decoration: const InputDecoration(hintText: "Enter New Folder Name"),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text("Cancel"),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: const Text("Rename"),
+                onPressed: () {
+                  if (newFolderName.isNotEmpty) {
+                    renameFolder(index, newFolderName);
+                  }
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
 
-    _insertNewFolder("Hearts",0);
-    _insertNewFolder("Spades",1);
-    _insertNewFolder("Diamonds",2);
-    _insertNewFolder("Clubs",3);
+    @override
+    void initState() {
+      super.initState();
+      _initializeDatabase();
+    }
+
+    _initializeDatabase();
+    insertNewFolder("Hearts",0);
+    insertNewFolder("Spades",1);
+    insertNewFolder("Diamonds",2);
+    insertNewFolder("Clubs",3);
     _getRowCount();
+    
 
     return Scaffold(
       appBar: AppBar(
@@ -142,12 +201,20 @@ class _MyHomePageState extends State<MyHomePage> {
             child:ColoredBox(color: Colors.red, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   
-                  Text(_folderName[index], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),),
+                  Text(folderNames[index], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),),
                   SizedBox(width: 50, height: 50, child: IconButton(
                     padding: EdgeInsets.all(0),
                     color: Colors.white,
-                    onPressed: () => renameFolder(index),
+                    onPressed: () => showRenameFolderDialog(index),
                     icon: Icon(Icons.recycling),
+                    
+                  ),),
+                  SizedBox(width: 50, height: 50, child: IconButton(
+                    padding: EdgeInsets.all(0),
+                    color: Colors.white,
+                    onPressed: () => showRenameFolderDialog(index),
+                    //this will be navigation eventually idk man 
+                    icon: Icon(Icons.file_open),
                     
                   ),),
                   SizedBox(width: 50, height: 50, child: IconButton(
@@ -165,7 +232,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: showAddFolderDialog,
-        child: const Text("Add\nTask"),
+        child: const Text("Add\nFolder"),
       ),
 
     );
